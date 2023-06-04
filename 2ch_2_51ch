@@ -1,0 +1,219 @@
+class SourceLocalizationModel(nn.Module):
+    def __init__(self):
+        super(SourceLocalizationModel, self).__init__()
+        self.lstm = nn.LSTM(513, 256, num_layers=2, batch_first=True)
+        self.transformer = nn.Transformer(d_model=256, nhead=4, num_encoder_layers=2)
+        self.fc = nn.Linear(256, 6)
+
+    def forward(self, x):
+        x, _ = self.lstm(x)
+        x = self.transformer(x)
+        x = self.fc(x)
+        return x
+
+model = SourceLocalizationModel()
+
+import torchaudio
+import torchaudio.transforms as T
+
+# 这里假设file_path是你音频文件的路径
+waveform, sample_rate = torchaudio.load(file_path)
+
+# 计算音频的STFT
+stft_transform = T.Spectrogram(n_fft=1024, hop_length=None, win_length=None, power=None)
+spectrogram = stft_transform(waveform)
+
+# 将频谱转换为幅度和相位
+magnitude = spectrogram.abs()
+phase = spectrogram.angle()
+
+class AudioDataset(torch.utils.data.Dataset):
+    def __init__(self, file_paths):
+        self.file_paths = file_paths
+
+    def __len__(self):
+        return len(self.file_paths)
+
+    def __getitem__(self, idx):
+        file_path = self.file_paths[idx]
+        
+        # Load audio and compute STFT, magnitude and phase here
+        # ...
+
+        # We would return the magnitude and phase as features and the sound source direction as label
+        return magnitude, phase, sound_source_direction
+
+file_paths = [...]  # A list of your audio file paths
+dataset = AudioDataset(file_paths)
+
+# We can now create a DataLoader for our dataset
+data_loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+
+import torch.nn as nn
+from torch.nn import Transformer
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+        self.encoder = TransformerEncoder(...)
+        self.decoder = TransformerDecoder(...)
+        
+    def forward(self, src, tgt):
+        src = self.encoder(src)
+        output = self.decoder(src, tgt)
+        return output
+
+import torch
+import librosa
+import numpy as np
+from torch.utils.data import Dataset, DataLoader
+
+class AudioDataset(Dataset):
+    def __init__(self, file_list_2ch, file_list_51ch):
+        self.file_list_2ch = file_list_2ch
+        self.file_list_51ch = file_list_51ch
+
+    def __len__(self):
+        return len(self.file_list_2ch)
+
+    def __getitem__(self, idx):
+        audio_2ch, _ = librosa.load(self.file_list_2ch[idx], sr=48000, mono=False)
+        audio_51ch, _ = librosa.load(self.file_list_51ch[idx], sr=96000, mono=False)
+
+        # Convert to spectrogram
+        spec_2ch = librosa.stft(audio_2ch)
+        spec_51ch = librosa.stft(audio_51ch)
+
+        # Take the magnitude of the spectrogram
+        spec_2ch = np.abs(spec_2ch)
+        spec_51ch = np.abs(spec_51ch)
+
+        return torch.Tensor(spec_2ch), torch.Tensor(spec_51ch)
+
+dataset = AudioDataset(file_list_2ch, file_list_51ch)
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+
+import torch.nn as nn
+import torch.nn.functional as F
+
+class AudioModel(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size, num_heads):
+        super(AudioModel, self).__init__()
+        
+        # LSTM layers
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        
+        # Transformer layers
+        self.transformer = nn.Transformer(hidden_size, num_heads)
+        
+        # Final linear layer
+        self.fc = nn.Linear(hidden_size, output_size)
+        
+    def forward(self, x):
+        # Pass the input through the LSTM layers
+        out, _ = self.lstm(x)
+        
+        # Pass the output of the LSTM through the Transformer
+        out = self.transformer(out)
+        
+        # Pass the output of the Transformer through the final linear layer
+        out = self.fc(out)
+        
+        return out
+
+model = AudioModel(input_size=2, hidden_size=512, output_size=5, num_heads=8)
+
+import torch
+from torch.optim import Adam
+
+# 定义损失函数和优化器
+criterion = torch.nn.MSELoss()
+optimizer = Adam(model.parameters())
+
+# 设定训练的轮数
+num_epochs = 100
+
+# 开始训练
+for epoch in range(num_epochs):
+
+    for batch in dataloader:
+
+        # 提取输入和目标输出
+        inputs, targets = batch
+
+        # 前向传播
+        outputs = model(inputs)
+
+        # 计算损失
+        loss = criterion(outputs, targets)
+
+        # 反向传播
+        loss.backward()
+
+        # 更新参数
+        optimizer.step()
+
+        # 清空梯度
+        optimizer.zero_grad()
+
+    # 每个epoch结束后打印损失
+    print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch+1, num_epochs, loss.item()))
+
+import torch
+from torch.optim import Adam
+
+# 定义损失函数和优化器
+criterion = torch.nn.MSELoss()
+optimizer = Adam(model.parameters())
+
+# 设定训练的轮数
+num_epochs = 100
+
+# 开始训练
+for epoch in range(num_epochs):
+
+    for phase in ['train', 'val']:
+        if phase == 'train':
+            model.train()
+            dataloader = train_dataloader
+        else:
+            model.eval()
+            dataloader = val_dataloader
+
+        running_loss = 0.0
+
+        for batch in dataloader:
+
+            # 提取输入和目标输出
+            inputs, targets = batch
+
+            # 前向传播
+            outputs = model(inputs)
+
+            # 计算损失
+            loss = criterion(outputs, targets)
+
+            if phase == 'train':
+                # 反向传播
+                loss.backward()
+
+                # 更新参数
+                optimizer.step()
+
+                # 清空梯度
+                optimizer.zero_grad()
+
+            running_loss += loss.item() * inputs.size(0)
+
+        epoch_loss = running_loss / len(dataloader.dataset)
+
+        # 每个epoch结束后打印损失
+        print('Epoch [{}/{}], Phase: {}, Loss: {:.4f}'.format(epoch+1, num_epochs, phase, epoch_loss))
+
+# 保存模型参数
+torch.save(model.state_dict(), 'model.pth')
+
+# 加载模型参数
+model = TheModelClass()  # 创建一个和之前一样的模型
+model.load_state_dict(torch.load('model.pth'))  # 加载参数
+model.eval()  # 设置为评估模式
